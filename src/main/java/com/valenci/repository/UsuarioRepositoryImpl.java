@@ -17,17 +17,14 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
 
     @Override
     public void guardarUsuario(Usuario usuario) {
-        // Distinguimos si es un usuario nuevo (INSERT) o existente (UPDATE)
         if (usuario.getId() == 0) {
-            // INSERT
             String sql = "INSERT INTO usuarios (nombre, correo, contrasena, telefono, rol, direccion_envio, cargo, salario, nombre_empresa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, usuario.getNombre());
                 ps.setString(2, usuario.getCorreo());
                 ps.setString(3, usuario.getContrasena());
-                ps.setString(4, null); // Teléfono no está en el modelo base, se puede añadir
+                ps.setString(4, null);
 
-                // Asignar rol y campos específicos según el tipo de objeto
                 if (usuario instanceof Cliente) {
                     ps.setString(5, "CLIENTE");
                     ps.setString(6, ((Cliente) usuario).getDireccionEnvio());
@@ -56,7 +53,6 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
 
                 ps.executeUpdate();
 
-                // Opcional: recuperar el ID generado y asignarlo al objeto
                 try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         usuario.setId(generatedKeys.getInt(1));
@@ -64,12 +60,10 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
                 }
 
             } catch (SQLException e) {
-                // En una aplicación real, aquí se lanzaría una excepción personalizada.
                 throw new RuntimeException("Error al guardar el usuario", e);
             }
         } else {
-            // UPDATE (lógica similar para actualizar)
-            // ...
+
         }
     }
 
@@ -168,7 +162,6 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
                 throw new SQLException("Rol de usuario desconocido: " + rol);
         }
 
-        // Asignar los atributos comunes
         usuario.setId(id);
         usuario.setNombre(nombre);
         usuario.setCorreo(correo);
