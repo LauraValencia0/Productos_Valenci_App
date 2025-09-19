@@ -8,7 +8,7 @@ public class DetallePedido {
     private int cantidad;
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
-    private Producto producto; // Relación de objeto
+    private Producto producto;
 
     public DetallePedido() {
     }
