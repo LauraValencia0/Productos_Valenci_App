@@ -6,13 +6,16 @@ import java.util.Optional;
 
 public interface IUsuarioService {
 
-    Optional<Usuario> autenticarUsuario(String correo, String contrasena);
-
     void registrarUsuario(Usuario usuario);
+
+    void actualizarUsuario(Usuario usuario);
+
+    Optional<Usuario> autenticarUsuario(String correo, String contrasena);
 
     Optional<Usuario> buscarUsuarioPorId(int id);
 
+    Optional<Usuario> buscarUsuarioPorCorreo(String correo);
+
     List<Usuario> obtenerTodosLosUsuarios();
 
-    Optional<Usuario> buscarUsuarioPorCorreo(String correo);
 }
