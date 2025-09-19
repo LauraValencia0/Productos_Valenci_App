@@ -48,4 +48,16 @@ public class UsuarioServiceImpl implements IUsuarioService {
     public Optional<Usuario> buscarUsuarioPorCorreo(String correo) {
         return usuarioRepository.buscarUsuarioPorCorreo(correo);
     }
+
+    @Override
+    public void actualizarUsuario(Usuario usuario) {
+        if (usuario == null || usuario.getId() == 0) {
+            throw new IllegalArgumentException("El usuario o su ID no pueden ser nulos para actualizar.");
+        }
+
+        usuarioRepository.buscarUsuarioPorId(usuario.getId())
+                .orElseThrow(() -> new IllegalArgumentException("El usuario con ID " + usuario.getId() + " no existe."));
+
+        usuarioRepository.guardarUsuario(usuario);
+    }
 }
