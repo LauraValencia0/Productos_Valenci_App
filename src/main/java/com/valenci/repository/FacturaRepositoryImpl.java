@@ -43,8 +43,6 @@ public class FacturaRepositoryImpl implements IFacturaRepository {
                 if (rs.next()) {
                     Factura factura = new Factura();
                     factura.setIdFactura(rs.getInt("id_factura"));
-                    // En una implementación completa, aquí también buscaríamos el Pedido asociado.
-                    // Por simplicidad, asumimos que el servicio se encargará de ensamblar el objeto completo.
                     factura.setFechaFactura(rs.getTimestamp("fecha_factura").toLocalDateTime());
                     factura.setTotalFactura(rs.getBigDecimal("total_factura"));
                     factura.setIva(rs.getBigDecimal("iva"));

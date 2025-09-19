@@ -18,7 +18,6 @@ public class ProductoRepositoryImpl implements IProductoRepository {
 
     @Override
     public void guardarProducto(Producto producto) {
-        // Decide si es un INSERT (nuevo) o un UPDATE (existente)
         if (producto.getIdProducto() == 0) {
             String sql = "INSERT INTO productos (nombre_producto, descripcion, precio, cantidad, id_proveedor) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -26,7 +25,6 @@ public class ProductoRepositoryImpl implements IProductoRepository {
                 ps.setString(2, producto.getDescripcion());
                 ps.setBigDecimal(3, producto.getPrecio());
                 ps.setInt(4, producto.getCantidad());
-                // Asigna el ID del proveedor, manejando el caso de que sea nulo
                 if (producto.getProveedor() != null) {
                     ps.setInt(5, producto.getProveedor().getId());
                 } else {
@@ -65,7 +63,6 @@ public class ProductoRepositoryImpl implements IProductoRepository {
 
     @Override
     public Optional<Producto> buscarProductoPorId(int id) {
-        // Usamos un JOIN para traer los datos del producto y su proveedor en una sola consulta.
         String sql = "SELECT p.*, u.id_usuario, u.nombre as proveedor_nombre, u.correo as proveedor_correo, u.nombre_empresa " +
                 "FROM productos p " +
                 "LEFT JOIN usuarios u ON p.id_proveedor = u.id_usuario " +
@@ -123,12 +120,10 @@ public class ProductoRepositoryImpl implements IProductoRepository {
         producto.setPrecio(rs.getBigDecimal("precio"));
         producto.setCantidad(rs.getInt("cantidad"));
 
-        // Mapear el proveedor si existe (resultado del LEFT JOIN)
         int idProveedor = rs.getInt("id_proveedor");
         if (!rs.wasNull()) {
             Proveedor proveedor = new Proveedor();
             proveedor.setId(idProveedor);
-            // Usamos los alias definidos en la consulta SQL para evitar ambigüedad de columnas
             proveedor.setNombre(rs.getString("proveedor_nombre"));
             proveedor.setCorreo(rs.getString("proveedor_correo"));
             proveedor.setNombreEmpresa(rs.getString("nombre_empresa"));
