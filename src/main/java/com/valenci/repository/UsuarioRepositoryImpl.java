@@ -63,9 +63,43 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
                 throw new RuntimeException("Error al guardar el usuario", e);
             }
         } else {
+            String sql = "UPDATE usuarios SET nombre = ?, correo = ?, contrasena = ?, direccion_envio = ?, cargo = ?, salario = ?, nombre_empresa = ? WHERE id_usuario = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, usuario.getNombre());
+                ps.setString(2, usuario.getCorreo());
+                ps.setString(3, usuario.getContrasena());
 
+                if (usuario instanceof Cliente) {
+                    ps.setString(4, ((Cliente) usuario).getDireccionEnvio());
+                    ps.setNull(5, Types.VARCHAR);
+                    ps.setNull(6, Types.DECIMAL);
+                    ps.setNull(7, Types.VARCHAR);
+                } else if (usuario instanceof Empleado) {
+                    ps.setNull(4, Types.VARCHAR);
+                    ps.setString(5, ((Empleado) usuario).getCargo());
+                    ps.setBigDecimal(6, ((Empleado) usuario).getSalario());
+                    ps.setNull(7, Types.VARCHAR);
+                } else if (usuario instanceof Proveedor) {
+                    ps.setNull(4, Types.VARCHAR);
+                    ps.setNull(5, Types.VARCHAR);
+                    ps.setNull(6, Types.DECIMAL);
+                    ps.setString(7, ((Proveedor) usuario).getNombreEmpresa());
+                } else { // Administrador u otros
+                    ps.setNull(4, Types.VARCHAR);
+                    ps.setNull(5, Types.VARCHAR);
+                    ps.setNull(6, Types.DECIMAL);
+                    ps.setNull(7, Types.VARCHAR);
+                }
+
+                ps.setInt(8, usuario.getId());
+                ps.executeUpdate();
+
+            } catch (SQLException e) {
+                throw new RuntimeException("Error al actualizar el usuario con ID " + usuario.getId(), e);
+            }
         }
     }
+
 
     @Override
     public Optional<Usuario> buscarUsuarioPorId(int id) {
@@ -125,19 +159,13 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
         }
     }
 
-    /**
-     * Método de ayuda para convertir una fila del ResultSet en el objeto Usuario correcto.
-     * Esta es la clave para manejar la herencia.
-     */
     private Usuario mapResultSetToUsuario(ResultSet rs) throws SQLException {
         int id = rs.getInt("id_usuario");
         String nombre = rs.getString("nombre");
         String correo = rs.getString("correo");
         String contrasena = rs.getString("contrasena");
         String rol = rs.getString("rol");
-
         Usuario usuario = null;
-
         switch (rol) {
             case "CLIENTE":
                 Cliente cliente = new Cliente();
@@ -161,12 +189,10 @@ public class UsuarioRepositoryImpl implements IUsuarioRepository {
             default:
                 throw new SQLException("Rol de usuario desconocido: " + rol);
         }
-
         usuario.setId(id);
         usuario.setNombre(nombre);
         usuario.setCorreo(correo);
         usuario.setContrasena(contrasena);
-
         return usuario;
     }
 }
