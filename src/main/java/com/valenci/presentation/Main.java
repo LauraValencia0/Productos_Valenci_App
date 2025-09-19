@@ -19,9 +19,12 @@ public class Main {
         IUsuarioRepository usuarioRepository = new UsuarioRepositoryImpl(connection);
         IProductoRepository productoRepository = new ProductoRepositoryImpl(connection);
         IPedidoRepository pedidoRepository = new PedidoRepositoryImpl(connection);
+        IPagoRepository pagoRepository = new PagoRepositoryImpl(connection);
+
         IUsuarioService usuarioService = new UsuarioServiceImpl(usuarioRepository);
         IProductoService productoService = new ProductoServiceImpl(productoRepository);
-        IPedidoService pedidoService = new PedidoServiceImpl(pedidoRepository, productoRepository);
+        IPedidoService pedidoService = new PedidoServiceImpl(pedidoRepository, productoRepository, pagoRepository);
+
 
         inicializarAdmin(usuarioService);
 
@@ -42,7 +45,7 @@ public class Main {
                         manejarPortalAutenticacion(scanner, usuarioService, productoService, pedidoService);
                         break;
                     case 2:
-                        verProductos(productoService);
+                        mostrarCatalogoCompleto(productoService);
                         break;
                     case 0:
                         System.out.println("Gracias por usar el sistema. ¡Hasta pronto!");
@@ -132,7 +135,7 @@ public class Main {
         while (!cerrarSesion) {
             System.out.println("\n--- MENÚ DE ADMINISTRADOR ---");
             System.out.println("1. Gestionar Productos");
-            System.out.println("2. Ver Todos los Pedidos");
+            System.out.println("2. Gestionar Pedidos");
             System.out.println("3. Gestionar Proveedores");
             System.out.println("0. Cerrar Sesión");
             System.out.print("Seleccione una opción: ");
@@ -144,7 +147,7 @@ public class Main {
                         gestionarProductos(scanner, productoService, usuarioService);
                         break;
                     case 2:
-                        verTodosLosPedidos(pedidoService);
+                        gestionarPedidos(scanner, pedidoService, productoService);
                         break;
                     case 3:
                         gestionarProveedores(scanner, usuarioService);
@@ -162,12 +165,14 @@ public class Main {
         }
     }
 
+
     private static void gestionarProveedores(Scanner scanner, IUsuarioService usuarioService) {
         boolean volver = false;
         while (!volver) {
             System.out.println("\n--- GESTIÓN DE PROVEEDORES ---");
             System.out.println("1. Crear Nuevo Proveedor");
             System.out.println("2. Listar Todos los Proveedores");
+            System.out.println("3. Actualizar un Proveedor");
             System.out.println("0. Volver al Menú de Administrador");
             System.out.print("Seleccione una opción: ");
 
@@ -199,6 +204,35 @@ public class Main {
                                             p.getId(), p.getNombre(), p.getNombreEmpresa(), p.getCorreo());
                                 });
                         break;
+                    case 3:
+                        System.out.println("\n-- Actualizando Proveedor --");
+                        System.out.print("Ingrese el ID del proveedor a actualizar: ");
+                        int idProveedor = Integer.parseInt(scanner.nextLine());
+
+                        Usuario usuarioAActualizar = usuarioService.buscarUsuarioPorId(idProveedor)
+                                .filter(u -> u instanceof Proveedor)
+                                .orElseThrow(() -> new IllegalArgumentException("ID no encontrado o no corresponde a un proveedor."));
+
+                        Proveedor proveedorAActualizar = (Proveedor) usuarioAActualizar;
+
+                        System.out.println("Editando proveedor: " + proveedorAActualizar.getNombreEmpresa());
+                        System.out.println("Deje el campo en blanco para no modificar el valor actual.");
+
+                        System.out.print("Nuevo nombre de contacto (" + proveedorAActualizar.getNombre() + "): ");
+                        String nuevoNombre = scanner.nextLine();
+                        if (!nuevoNombre.isBlank()) proveedorAActualizar.setNombre(nuevoNombre);
+
+                        System.out.print("Nuevo correo (" + proveedorAActualizar.getCorreo() + "): ");
+                        String nuevoCorreo = scanner.nextLine();
+                        if (!nuevoCorreo.isBlank()) proveedorAActualizar.setCorreo(nuevoCorreo);
+
+                        System.out.print("Nuevo nombre de empresa (" + proveedorAActualizar.getNombreEmpresa() + "): ");
+                        String nuevaEmpresa = scanner.nextLine();
+                        if (!nuevaEmpresa.isBlank()) proveedorAActualizar.setNombreEmpresa(nuevaEmpresa);
+
+                        usuarioService.actualizarUsuario(proveedorAActualizar);
+                        System.out.println("¡Proveedor actualizado exitosamente!");
+                        break;
                     case 0:
                         volver = true;
                         break;
@@ -212,36 +246,88 @@ public class Main {
     }
 
     private static void gestionarProductos(Scanner scanner, IProductoService productoService, IUsuarioService usuarioService) {
-        System.out.println("\n--- GESTIÓN DE PRODUCTOS ---");
-        System.out.println("1. Crear nuevo producto");
-        System.out.println("2. Actualizar un producto");
-        // ... más opciones como eliminar, etc.
-        System.out.print("Seleccione una opción: ");
-        int opcion = Integer.parseInt(scanner.nextLine());
+        boolean volver = false;
+        while (!volver) {
+            System.out.println("\n--- GESTIÓN DE PRODUCTOS ---");
+            System.out.println("1. Crear nuevo producto");
+            System.out.println("2. Actualizar un producto");
+            System.out.println("3. Eliminar un producto");
+            System.out.println("4. Ver todos los productos");
+            System.out.println("0. Volver al menú de administrador");
+            System.out.print("Seleccione una opción: ");
 
-        if (opcion == 1) {
             try {
-                System.out.print("Nombre del producto: ");
-                String nombre = scanner.nextLine();
-                System.out.print("Descripción: ");
-                String desc = scanner.nextLine();
-                System.out.print("Precio (ej. 25000.50): ");
-                BigDecimal precio = new BigDecimal(scanner.nextLine());
-                System.out.print("Cantidad en stock: ");
-                int stock = Integer.parseInt(scanner.nextLine());
-                System.out.print("ID del Proveedor: ");
-                int idProveedor = Integer.parseInt(scanner.nextLine());
+                int opcion = Integer.parseInt(scanner.nextLine());
+                switch (opcion) {
+                    case 1:
+                        System.out.println("\n-- Creando Nuevo Producto --");
+                        System.out.print("Nombre del producto: ");
+                        String nombre = scanner.nextLine();
+                        System.out.print("Descripción: ");
+                        String desc = scanner.nextLine();
+                        System.out.print("Precio (ej. 25000.50): ");
+                        BigDecimal precio = new BigDecimal(scanner.nextLine());
+                        System.out.print("Cantidad en stock: ");
+                        int stock = Integer.parseInt(scanner.nextLine());
+                        System.out.print("ID del Proveedor: ");
+                        int idProveedor = Integer.parseInt(scanner.nextLine());
 
-                Usuario proveedorUsuario = usuarioService.buscarUsuarioPorId(idProveedor)
-                        .filter(u -> u instanceof Proveedor)
-                        .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado o el ID no corresponde a un proveedor."));
+                        Usuario proveedorUsuario = usuarioService.buscarUsuarioPorId(idProveedor)
+                                .filter(u -> u instanceof Proveedor)
+                                .orElseThrow(() -> new IllegalArgumentException("Proveedor no encontrado o el ID no corresponde a un proveedor."));
 
-                Producto nuevoProducto = new Producto(0, nombre, desc, precio, stock, (Proveedor) proveedorUsuario);
-                productoService.agregarProducto(nuevoProducto);
-                System.out.println("Producto '" + nombre + "' creado exitosamente.");
+                        Producto nuevoProducto = new Producto(0, nombre, desc, precio, stock, (Proveedor) proveedorUsuario);
+                        productoService.agregarProducto(nuevoProducto);
+                        System.out.println("Producto '" + nombre + "' creado exitosamente.");
+                        break;
+                    case 2:
+                        System.out.println("\n-- Actualizando Producto --");
+                        System.out.print("Ingrese el ID del producto a actualizar: ");
+                        int idActualizar = Integer.parseInt(scanner.nextLine());
 
+                        Producto productoAActualizar = productoService.obtenerProductoPorId(idActualizar)
+                                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado."));
+
+                        System.out.println("Editando producto: " + productoAActualizar.getNombreProducto());
+                        System.out.println("Deje el campo en blanco para no modificar el valor actual.");
+
+                        System.out.print("Nuevo nombre (" + productoAActualizar.getNombreProducto() + "): ");
+                        String nuevoNombre = scanner.nextLine();
+                        if (!nuevoNombre.isBlank()) productoAActualizar.setNombreProducto(nuevoNombre);
+
+                        System.out.print("Nueva descripción (" + productoAActualizar.getDescripcion() + "): ");
+                        String nuevaDesc = scanner.nextLine();
+                        if (!nuevaDesc.isBlank()) productoAActualizar.setDescripcion(nuevaDesc);
+
+                        System.out.print("Nuevo precio (" + productoAActualizar.getPrecio() + "): ");
+                        String nuevoPrecioStr = scanner.nextLine();
+                        if (!nuevoPrecioStr.isBlank()) productoAActualizar.setPrecio(new BigDecimal(nuevoPrecioStr));
+
+                        System.out.print("Nueva cantidad en stock (" + productoAActualizar.getCantidad() + "): ");
+                        String nuevoStockStr = scanner.nextLine();
+                        if (!nuevoStockStr.isBlank()) productoAActualizar.setCantidad(Integer.parseInt(nuevoStockStr));
+
+                        productoService.actualizarProducto(productoAActualizar);
+                        System.out.println("¡Producto actualizado exitosamente!");
+                        break;
+                    case 3:
+                        System.out.println("\n-- Eliminando Producto --");
+                        System.out.print("Ingrese el ID del producto a eliminar: ");
+                        int idEliminar = Integer.parseInt(scanner.nextLine());
+                        productoService.eliminarProducto(idEliminar);
+                        System.out.println("Producto con ID " + idEliminar + " eliminado exitosamente.");
+                        break;
+                    case 4:
+                        mostrarCatalogoCompleto(productoService);
+                        break;
+                    case 0:
+                        volver = true;
+                        break;
+                    default:
+                        System.out.println("Opción no válida.");
+                }
             } catch (Exception e) {
-                System.out.println("Error al crear el producto: " + e.getMessage());
+                System.out.println("Error: " + e.getMessage());
             }
         }
     }
@@ -253,16 +339,24 @@ public class Main {
             System.out.println("No hay pedidos registrados en el sistema.");
             return;
         }
-        pedidos.forEach(pedido -> {
-            System.out.printf("ID Pedido: %d | Fecha: %s | Cliente: %s | Total: $%.2f | Estado: %s%n",
-                    pedido.getIdPedido(),
-                    pedido.getFechaPedido().toLocalDate(),
-                    pedido.getCliente().getNombre(),
-                    pedido.getTotalPedido(),
-                    pedido.getEstadoPedido());
-        });
-    }
 
+        for (Pedido pedido : pedidos) {
+            imprimirResumenPedido(pedido, true);
+
+            if (pedido.getDetalles() != null && !pedido.getDetalles().isEmpty()) {
+                System.out.println("  Detalles del Pedido:");
+                for (DetallePedido detalle : pedido.getDetalles()) {
+                    System.out.printf("    - Producto: %s | Cantidad: %d | Precio Unit.: $%.2f | Subtotal: $%.2f%n",
+                            detalle.getProducto().getNombreProducto(),
+                            detalle.getCantidad(),
+                            detalle.getPrecioUnitario(),
+                            detalle.getSubtotal()
+                    );
+                }
+            }
+            System.out.println("----------------------------------------");
+        }
+    }
 
     private static void iniciarSesionCliente(Scanner scanner, Cliente cliente, IProductoService productoService, IPedidoService pedidoService) {
         boolean cerrarSesion = false;
@@ -270,6 +364,7 @@ public class Main {
             System.out.println("\n--- MENÚ DEL CLIENTE ---");
             System.out.println("1. Realizar un Pedido");
             System.out.println("2. Ver Mis Pedidos");
+            System.out.println("3. Pagar Pedido Pendiente");
             System.out.println("0. Cerrar Sesión");
             System.out.print("Seleccione una opción: ");
 
@@ -281,6 +376,9 @@ public class Main {
                         break;
                     case 2:
                         verMisPedidos(cliente, pedidoService);
+                        break;
+                    case 3:
+                        pagarPedido(scanner, cliente, pedidoService);
                         break;
                     case 0:
                         cerrarSesion = true;
@@ -296,8 +394,9 @@ public class Main {
     }
 
     private static void realizarPedido(Scanner scanner, Cliente cliente, IProductoService productoService, IPedidoService pedidoService) {
+        // (Este método no tiene cambios)
         System.out.println("\n--- REALIZAR NUEVO PEDIDO ---");
-        verProductos(productoService);
+        mostrarCatalogoCompleto(productoService);
 
         List<DetallePedido> detalles = new ArrayList<>();
         while (true) {
@@ -333,12 +432,56 @@ public class Main {
             Pedido pedidoCreado = pedidoService.crearPedido(nuevoPedido);
             System.out.println("\n¡PEDIDO CREADO EXITOSAMENTE!");
             System.out.println("Resumen del Pedido:");
-            System.out.println("ID de Pedido: " + pedidoCreado.getIdPedido());
-            System.out.println("Fecha: " + pedidoCreado.getFechaPedido().toLocalDate());
-            System.out.println("Total: $" + pedidoCreado.getTotalPedido());
-            System.out.println("Estado: " + pedidoCreado.getEstadoPedido());
+            imprimirResumenPedido(pedidoCreado, false);
         } catch (Exception e) {
             System.out.println("\nError al crear el pedido: " + e.getMessage());
+        }
+    }
+
+    private static void pagarPedido(Scanner scanner, Cliente cliente, IPedidoService pedidoService) {
+        System.out.println("\n--- PAGAR PEDIDO PENDIENTE ---");
+        System.out.println("Tus pedidos pendientes de pago:");
+
+        List<Pedido> pedidosPendientes = pedidoService.obtenerPedidosPorCliente(cliente.getId())
+                .stream()
+                .filter(p -> p.getEstadoPedido() == EstadoPedido.PENDIENTE)
+                .toList();
+
+        if (pedidosPendientes.isEmpty()) {
+            System.out.println("No tienes pedidos pendientes de pago.");
+            return;
+        }
+
+        pedidosPendientes.forEach(p -> imprimirResumenPedido(p, false));
+
+        try {
+            System.out.print("\nIngrese el ID del pedido que desea pagar: ");
+            int idPedido = Integer.parseInt(scanner.nextLine());
+
+            Pedido pedidoAPagar = pedidosPendientes.stream()
+                    .filter(p -> p.getIdPedido() == idPedido)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("El ID no corresponde a uno de tus pedidos pendientes."));
+
+            System.out.println("Total a pagar por el pedido " + idPedido + ": $" + pedidoAPagar.getTotalPedido());
+            System.out.println("Seleccione el método de pago:");
+            System.out.println("1. TARJETA_CREDITO");
+            System.out.println("2. TARJETA_DEBITO");
+            System.out.println("3. TRANSFERENCIA");
+            int metodoOpcion = Integer.parseInt(scanner.nextLine());
+
+            MetodoPago metodoPago;
+            switch (metodoOpcion) {
+                case 1: metodoPago = MetodoPago.TARJETA_CREDITO; break;
+                case 2: metodoPago = MetodoPago.TARJETA_DEBITO; break;
+                case 3: metodoPago = MetodoPago.TRANSFERENCIA; break;
+                default: System.out.println("Método no válido."); return;
+            }
+
+            pedidoService.registrarPagoParaPedido(idPedido, pedidoAPagar.getTotalPedido(), metodoPago);
+
+        } catch (Exception e) {
+            System.out.println("\nError al procesar el pago: " + e.getMessage());
         }
     }
 
@@ -349,15 +492,8 @@ public class Main {
             System.out.println("No has realizado ningún pedido todavía.");
             return;
         }
-        misPedidos.forEach(pedido -> {
-            System.out.printf("ID Pedido: %d | Fecha: %s | Total: $%.2f | Estado: %s%n",
-                    pedido.getIdPedido(),
-                    pedido.getFechaPedido().toLocalDate(),
-                    pedido.getTotalPedido(),
-                    pedido.getEstadoPedido());
-        });
+        misPedidos.forEach(pedido -> imprimirResumenPedido(pedido, false));
     }
-
 
     private static void inicializarAdmin(IUsuarioService usuarioService) {
         String adminCorreo = "admin@valenci.com";
@@ -371,14 +507,129 @@ public class Main {
         }
     }
 
-    private static void verProductos(IProductoService productoService) {
+    private static void mostrarCatalogoCompleto(IProductoService productoService) {
         System.out.println("\n--- CATÁLOGO DE PRODUCTOS ---");
         productoService.obtenerTodosLosProductos().forEach(producto -> {
-            System.out.printf("ID: %d | Nombre: %s | Precio: $%.2f | Stock: %d%n",
+            String proveedor = (producto.getProveedor() != null) ? producto.getProveedor().getNombreEmpresa() : "N/A";
+            System.out.printf("ID: %d | Nombre: %s | Precio: $%.2f | Stock: %d | Proveedor: %s%n",
                     producto.getIdProducto(),
                     producto.getNombreProducto(),
                     producto.getPrecio(),
-                    producto.getCantidad());
+                    producto.getCantidad(),
+                    proveedor);
         });
+    }
+
+    private static void imprimirResumenPedido(Pedido pedido, boolean mostrarCliente) {
+        if (mostrarCliente) {
+            System.out.printf("ID Pedido: %d | Fecha: %s | Cliente: %s | Total: $%.2f | Estado: %s%n",
+                    pedido.getIdPedido(),
+                    pedido.getFechaPedido().toLocalDate(),
+                    pedido.getCliente().getNombre(),
+                    pedido.getTotalPedido(),
+                    pedido.getEstadoPedido());
+        } else {
+            System.out.printf("ID Pedido: %d | Fecha: %s | Total: $%.2f | Estado: %s%n",
+                    pedido.getIdPedido(),
+                    pedido.getFechaPedido().toLocalDate(),
+                    pedido.getTotalPedido(),
+                    pedido.getEstadoPedido());
+        }
+    }
+
+
+    private static void gestionarPedidos(Scanner scanner, IPedidoService pedidoService, IProductoService productoService) {
+        boolean volver = false;
+        while (!volver) {
+            System.out.println("\n--- GESTIÓN DE PEDIDOS ---");
+            System.out.println("1. Actualizar Estado de un Pedido");
+            System.out.println("2. Buscar Pedido por ID");
+            System.out.println("3. Listar Pedidos por Estado");
+            System.out.println("4. Listar Pedidos por Fecha (AAAA-MM-DD)");
+            System.out.println("5. Listar Pedidos por ID de Producto");
+            System.out.println("6. Listar Todos los Pedidos");
+            System.out.println("0. Volver al Menú de Administrador");
+            System.out.print("Seleccione una opción: ");
+
+            try {
+                int opcion = Integer.parseInt(scanner.nextLine());
+                List<Pedido> pedidosEncontrados;
+
+                switch (opcion) {
+                    case 1:
+                        System.out.print("Ingrese el ID del pedido a actualizar: ");
+                        int idPedido = Integer.parseInt(scanner.nextLine());
+                        verTodosLosPedidos(pedidoService);
+                        System.out.println("Seleccione el nuevo estado:");
+                        for (EstadoPedido estado : EstadoPedido.values()) {
+                            System.out.println((estado.ordinal() + 1) + ". " + estado.name());
+                        }
+                        System.out.print("Opción de estado: ");
+                        int opcionEstado = Integer.parseInt(scanner.nextLine());
+                        EstadoPedido nuevoEstado = EstadoPedido.values()[opcionEstado - 1];
+
+                        pedidoService.actualizarEstadoPedido(idPedido, nuevoEstado);
+                        break;
+                    case 2:
+                        System.out.print("Ingrese el ID del pedido a buscar: ");
+                        int idBuscar = Integer.parseInt(scanner.nextLine());
+                        pedidoService.obtenerPedidoPorId(idBuscar)
+                                .ifPresentOrElse(
+                                        p -> imprimirResumenPedido(p, true),
+                                        () -> System.out.println("No se encontró ningún pedido con ese ID.")
+                                );
+                        break;
+                    case 3:
+                        System.out.println("Seleccione el estado a buscar:");
+                        for (EstadoPedido estado : EstadoPedido.values()) {
+                            System.out.println((estado.ordinal() + 1) + ". " + estado.name());
+                        }
+                        System.out.print("Opción de estado: ");
+                        int estadoBuscarOpcion = Integer.parseInt(scanner.nextLine());
+                        EstadoPedido estadoBuscar = EstadoPedido.values()[estadoBuscarOpcion - 1];
+                        pedidosEncontrados = pedidoService.obtenerPedidosPorEstado(estadoBuscar);
+                        pedidosEncontrados.forEach(p -> imprimirResumenPedido(p, true));
+                        break;
+                    case 4:
+                        System.out.print("Ingrese la fecha a buscar (formato AAAA-MM-DD): ");
+                        java.time.LocalDate fecha = java.time.LocalDate.parse(scanner.nextLine());
+                        pedidosEncontrados = pedidoService.obtenerPedidosPorFecha(fecha);
+
+                        if (pedidosEncontrados.isEmpty()) {
+                            System.out.println("\nNo se encontraron pedidos para la fecha seleccionada.");
+                        } else {
+                            System.out.println("\n--- Pedidos encontrados para la fecha " + fecha + " ---");
+                            pedidosEncontrados.forEach(p -> imprimirResumenPedido(p, true));
+                        }
+                        break;
+                    case 5:
+                        System.out.println("\n-- Buscando Pedidos por Producto --");
+                        mostrarCatalogoCompleto(productoService);
+
+                        System.out.print("\nIngrese el ID del producto contenido en los pedidos: ");
+                        int idProducto = Integer.parseInt(scanner.nextLine());
+                        pedidosEncontrados = pedidoService.obtenerPedidosPorProducto(idProducto);
+
+                        if (pedidosEncontrados.isEmpty()) {
+                            System.out.println("\nNo se encontraron pedidos que contengan ese producto.");
+                        } else {
+                            System.out.println("\n--- Pedidos encontrados que contienen el producto ID " + idProducto + " ---");
+                            pedidosEncontrados.forEach(p -> imprimirResumenPedido(p, true));
+                        }
+                        break;
+
+                    case 6:
+                        verTodosLosPedidos(pedidoService);
+                        break;
+                    case 0:
+                        volver = true;
+                        break;
+                    default:
+                        System.out.println("Opción no válida.");
+                }
+            } catch (Exception e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
     }
 }
