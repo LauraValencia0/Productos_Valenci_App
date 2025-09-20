@@ -9,9 +9,9 @@ public class Pedido {
     private int idPedido;
     private LocalDateTime fechaPedido;
     private BigDecimal totalPedido;
-    private EstadoPedido estadoPedido;
-    private Cliente cliente;
-    private List<DetallePedido> detalles;
+    private EstadoPedido estadoPedido; // Usamos un Enum para controlar los estados
+    private Cliente cliente; // Relación de objeto
+    private List<DetallePedido> detalles; // Un pedido tiene una lista de detalles
 
     public Pedido() {
     }
