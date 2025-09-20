@@ -3,7 +3,6 @@ package com.valenci.domain;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// ---- FACTURA ----
 public class Factura {
     private int idFactura;
     private Pedido pedido;
