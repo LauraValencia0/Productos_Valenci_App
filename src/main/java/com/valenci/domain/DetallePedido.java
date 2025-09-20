@@ -8,12 +8,19 @@ public class DetallePedido {
     private int cantidad;
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
-    private Producto producto;
+    private Producto producto; // Relación de objeto
+
+    public DetallePedido(int idDetallePedido, int cantidad, BigDecimal precioUnitario, BigDecimal subtotal, Producto producto) {
+        this.idDetallePedido = idDetallePedido;
+        this.cantidad = cantidad;
+        this.precioUnitario = precioUnitario;
+        this.subtotal = subtotal;
+        this.producto = producto;
+    }
 
     public DetallePedido() {
     }
 
-    // Getters y Setters
     public int getIdDetallePedido() { return idDetallePedido; }
     public void setIdDetallePedido(int idDetallePedido) { this.idDetallePedido = idDetallePedido; }
     public int getCantidad() { return cantidad; }
