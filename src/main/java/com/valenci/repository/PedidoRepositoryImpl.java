@@ -121,23 +121,66 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
         return detalles;
     }
 
+
+    //Mejora de Metodo para ver pedidos más detallados por el cliente
     @Override
     public List<Pedido> buscarPedidosPorClienteId(int idCliente) {
+        // 1. Obtenemos las cabeceras de los pedidos para este cliente.
         List<Pedido> pedidos = new ArrayList<>();
-        String sql = "SELECT p.*, u.id_usuario, u.nombre as cliente_nombre, u.correo as cliente_correo " +
-                "FROM pedidos p JOIN usuarios u ON p.id_cliente = u.id_usuario WHERE p.id_cliente = ?";
-        try(PreparedStatement ps = connection.prepareStatement(sql)){
+        String sqlPedidos = "SELECT p.*, u.nombre as cliente_nombre, u.correo as cliente_correo " +
+                "FROM pedidos p " +
+                "JOIN usuarios u ON p.id_cliente = u.id_usuario " +
+                "WHERE p.id_cliente = ? ORDER BY p.fecha_pedido DESC";
+
+        try (PreparedStatement ps = connection.prepareStatement(sqlPedidos)) {
             ps.setInt(1, idCliente);
-            try(ResultSet rs = ps.executeQuery()){ while(rs.next()){ pedidos.add(mapResultSetToPedido(rs)); } }
-        } catch (SQLException e){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    pedidos.add(mapResultSetToPedido(rs));
+                }
+            }
+        } catch (SQLException e) {
             throw new RuntimeException("Error al buscar pedidos por cliente", e);
         }
+
+        if (pedidos.isEmpty()) {
+            return pedidos;
+        }
+
+        // 2. Buscamos TODOS los detalles de esos pedidos en UNA SOLA CONSULTA.
+        Map<Integer, List<DetallePedido>> detallesPorPedidoId = new HashMap<>();
+        String placeholders = String.join(",", Collections.nCopies(pedidos.size(), "?"));
+        String sqlDetalles = "SELECT d.*, pr.nombre_producto, pr.precio as producto_precio " +
+                "FROM detalle_pedido d " +
+                "JOIN productos pr ON d.id_producto = pr.id_producto " +
+                "WHERE d.id_pedido IN (" + placeholders + ")";
+
+        try (PreparedStatement ps = connection.prepareStatement(sqlDetalles)) {
+            for (int i = 0; i < pedidos.size(); i++) {
+                ps.setInt(i + 1, pedidos.get(i).getIdPedido());
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int idPedido = rs.getInt("id_pedido");
+                    DetallePedido detalle = mapResultSetToDetallePedido(rs);
+                    detallesPorPedidoId.computeIfAbsent(idPedido, k -> new ArrayList<>()).add(detalle);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al buscar los detalles de los pedidos del cliente", e);
+        }
+
+        // 3. Asignamos la lista de detalles a cada pedido.
+        for (Pedido pedido : pedidos) {
+            pedido.setDetalles(detallesPorPedidoId.getOrDefault(pedido.getIdPedido(), new ArrayList<>()));
+        }
+
         return pedidos;
     }
 
-
     @Override
     public List<Pedido> buscarTodosLosPedidos() {
+        // 1. Obtenemos primero las cabeceras de todos los pedidos.
         List<Pedido> pedidos = new ArrayList<>();
         String sqlPedidos = "SELECT p.*, u.nombre as cliente_nombre, u.correo as cliente_correo " +
                 "FROM pedidos p " +
@@ -153,12 +196,16 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
             throw new RuntimeException("Error al buscar todos los pedidos", e);
         }
 
+        // Si no se encontraron pedidos, devolvemos la lista vacía.
         if (pedidos.isEmpty()) {
             return pedidos;
         }
 
+        // 2. Ahora, buscamos TODOS los detalles de esos pedidos en UNA SOLA CONSULTA.
+        // Primero, creamos un mapa para organizar los detalles por ID de pedido.
         Map<Integer, List<DetallePedido>> detallesPorPedidoId = new HashMap<>();
 
+        // Construimos la parte "IN (?, ?, ...)" de la consulta dinámicamente.
         String placeholders = String.join(",", Collections.nCopies(pedidos.size(), "?"));
         String sqlDetalles = "SELECT d.*, pr.nombre_producto, pr.precio as producto_precio " +
                 "FROM detalle_pedido d " +
@@ -166,6 +213,7 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
                 "WHERE d.id_pedido IN (" + placeholders + ")";
 
         try (PreparedStatement ps = connection.prepareStatement(sqlDetalles)) {
+            // Asignamos los IDs de los pedidos a los placeholders
             for (int i = 0; i < pedidos.size(); i++) {
                 ps.setInt(i + 1, pedidos.get(i).getIdPedido());
             }
@@ -173,7 +221,8 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int idPedido = rs.getInt("id_pedido");
-                    DetallePedido detalle = mapResultSetToDetallePedido(rs);
+                    DetallePedido detalle = mapResultSetToDetallePedido(rs); // Usamos un nuevo helper
+                    // Agrupamos los detalles en el mapa
                     detallesPorPedidoId.computeIfAbsent(idPedido, k -> new ArrayList<>()).add(detalle);
                 }
             }
@@ -181,6 +230,7 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
             throw new RuntimeException("Error al buscar los detalles de los pedidos", e);
         }
 
+        // 3. Finalmente, asignamos la lista de detalles a cada pedido correspondiente.
         for (Pedido pedido : pedidos) {
             pedido.setDetalles(detallesPorPedidoId.getOrDefault(pedido.getIdPedido(), new ArrayList<>()));
         }
@@ -188,6 +238,8 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
         return pedidos;
     }
 
+    // --- MÉTODO DE AYUDA NUEVO ---
+// Necesitamos un helper para mapear los detalles, similar al que ya tenemos para Pedido
     private DetallePedido mapResultSetToDetallePedido(ResultSet rs) throws SQLException {
         DetallePedido detalle = new DetallePedido();
         detalle.setIdDetallePedido(rs.getInt("id_detalle_pedido"));
@@ -217,7 +269,6 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
         pedido.setCliente(cliente);
         return pedido;
     }
-
 
     @Override
     public List<Pedido> buscarPedidosPorEstado(EstadoPedido estado) {
@@ -260,6 +311,7 @@ public class PedidoRepositoryImpl implements IPedidoRepository {
     @Override
     public List<Pedido> buscarPedidosPorProducto(int idProducto) {
         List<Pedido> pedidos = new ArrayList<>();
+        // Esta consulta usa DISTINCT para no devolver el mismo pedido varias veces si contenía el mismo producto más de una vez
         String sql = "SELECT DISTINCT p.*, u.nombre as cliente_nombre, u.correo as cliente_correo " +
                 "FROM pedidos p " +
                 "JOIN detalle_pedido d ON p.id_pedido = d.id_pedido " +
